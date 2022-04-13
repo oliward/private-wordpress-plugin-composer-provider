@@ -77,8 +77,17 @@ jobs:
         if: ${{ steps.previous_version.outputs.tag != steps.new_version.outputs.new_version }}
         run: rm package.zip && rm -rf ${{ env.PACKAGE_SLUG }}
         
+      # check to prevent other next step failing if no files have changed
+      # To overcome hack of increasing minor version numbers during repo setup: x.x.x.1
+      - name: Check Git status
+        id: git
+        shell: bash
+        run: |
+          result=$(git status)
+          echo "::set-output name=status::$RESULT"
+        
       - name: Commit
-        if: ${{ steps.previous_version.outputs.tag != steps.new_version.outputs.new_version }}
+        if: contains(steps.git.outputs.result, 'nothing to commit')
         id: make-commit
         run: |
           git add .
@@ -86,7 +95,7 @@ jobs:
           echo "::set-output name=commit::$(git rev-parse HEAD)"
     
       - name: Push
-        if: ${{ steps.previous_version.outputs.tag != steps.new_version.outputs.new_version }}
+        if: contains(steps.git.outputs.result, 'nothing to commit')
         run: |
           git push
           git tag ${{ steps.new_version.outputs.new_version }}
