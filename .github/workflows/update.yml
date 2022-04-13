@@ -79,15 +79,16 @@ jobs:
         
       # check to prevent other next step failing if no files have changed
       # To overcome hack of increasing minor version numbers during repo setup: x.x.x.1
-      - name: Check Git status
-        id: git
-        shell: bash
-        run: |
-          result=$(git status)
-          echo "::set-output name=status::$RESULT"
+     
+      - name: Check for uncommitted changes
+        id: check-changes
+        uses: mskri/check-uncommitted-changes-action@v1.0.1
+      - name: Evaluate if there are changes
+        if: steps.check-changes.outputs.outcome == failure()
+        run: echo "There are uncommitted changes"
         
       - name: Commit
-        if: contains(steps.git.outputs.result, 'nothing to commit')
+        if: steps.check-changes.outputs.outcome == failure()
         id: make-commit
         run: |
           git add .
@@ -95,7 +96,7 @@ jobs:
           echo "::set-output name=commit::$(git rev-parse HEAD)"
     
       - name: Push
-        if: contains(steps.git.outputs.result, 'nothing to commit')
+        if: steps.check-changes.outputs.outcome == failure()
         run: |
           git push
           git tag ${{ steps.new_version.outputs.new_version }}
